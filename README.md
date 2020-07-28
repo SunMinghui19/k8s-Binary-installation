@@ -96,11 +96,12 @@ UNCONN     0      0            *:123                      *:*
 # systemctl start chronyd
 # systemctl enable chronyd
 
-# chronyc sources #worker节点的时间源为^* k8s-master1项即为正常
-	210 Number of sources = 1
-	MS Name/IP address         Stratum Poll Reach LastRx Last sample               
-	===============================================================================
-	^* k8s-master1                  10   6    17    60    -44us[  -56us] +/-  192us
+#worker节点的时间源为^* k8s-master1项即为正常
+# chronyc sources 
+210 Number of sources = 1
+MS Name/IP address         Stratum Poll Reach LastRx Last sample               
+===============================================================================
+^* k8s-master1                  10   6    17    60    -44us[  -56us] +/-  192us
 ```
 ## 2.6、关闭交换分区
 ```
@@ -110,16 +111,17 @@ UNCONN     0      0            *:123                      *:*
 # vim /etc/fstab #永久关闭
 	注释一行：swap
 [root@localhost sunminghui]# free –m #检验是否成功
-			total        used        free      shared  buff/cache   available
-	Mem:           2818         107        2565           8         144        2539
-	Swap:             0           0           0
+	       total        used        free      shared  buff/cache   available
+Mem:           2818         107        2565           8         144        2539
+Swap:             0           0           0
 ```
 # 三、给etcd来颁发证书并部署etcd
 ```
 给etcd颁发证书主要包括下面几步：
-	1）创建证书颁发机构
-	2）填写表单——写明etcd所在节点的IP
-	3）向证书颁发机构申请证书
+1）创建证书颁发机构
+2）填写表单——写明etcd所在节点的IP
+3）向证书颁发机构申请证书
+
 因为需要上传文件，如果不使用xftp的话可以使用如下指令安装lrzsz
 yum install -y lrzsz
 ```
@@ -134,14 +136,14 @@ yum install -y lrzsz
 	
 	# cd etcd/
 	#vim server-csr.json（申请证书之前需要填的表）
-		修改host中的IP地址，这里的IP是etcd所在节点的IP地址
+		！！！！！修改host中的IP地址，这里的IP是etcd所在节点的IP地址!!!!!
 
 		{
 		    "CN": "etcd",
 		    "hosts": [
-			*"192.168.133.180",*
-			*"192.168.133.181",*
-			*"192.168.133.182"*
+			"192.168.133.180",
+			"192.168.133.181",
+			"192.168.133.182"
 			],
 		    "key": {
 			"algo": "rsa",
@@ -156,82 +158,93 @@ yum install -y lrzsz
 		    ]
 		}
 # ./generate_etcd_cert.sh
+
+#如果执行如下命令，出现4个pem文件即为成功生成了证书颁发机构和etcd证书
 # ls *pem
 ca-key.pem  ca.pem  server-key.pem  server.pem
-
-四、部署etcd
-	etcd需要三台虚拟机
-	在master、node1、node2上分别安装一个etcd
-	
-
-	注意：
-		解压之后会生成一个文件和一个目录
-	
-		# tar xvf etcd.tar.gz
-		# mv etcd.service  /usr/lib/systemd/system
-		#mv etcd /opt/
-		# vim /opt/etcd/cfg/etcd.conf
-			#[Member]
-ETCD_NAME="etcd-1"
-ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
-ETCD_LISTEN_PEER_URLS="https://192.168.133.180:2380"
-ETCD_LISTEN_CLIENT_URLS="https://192.168.133.180:2379"
-
-#[Clustering]
-ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.133.180:2380"
-ETCD_ADVERTISE_CLIENT_URLS="https://192.168.133.180:2379"
-ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.133.180:2380,etcd-2=https://192.168.133.181:2380,etcd-3=https://192.168.133.182:2380"
-ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
-ETCD_INITIAL_CLUSTER_STATE="new"
-		# rm -rf /opt/etcd/ssl/*
-		# \cp -fv /root/TLS/etcd/{ca,server,server-key}.pem /opt/etcd/ssl/
-
-
-		将etcd管理程序和程序目录发送到node1和node2
-		# scp /usr/lib/systemd/system/etcd.service root@k8s-node1:/usr/lib/systemd/system/
-   		# scp /usr/lib/systemd/system/etcd.service root@k8s-node2:/usr/lib/systemd/system/
- 		# scp -r /opt/etcd/  root@k8s-node1:/opt/
-   		# scp -r /opt/etcd/  root@k8s-node2:/opt
-		
-		在node1上修改配置文件
+```
+## 3.2 部署etcd集群
+```
+etcd需要三台虚拟机
+在master、node1、node2上分别安装一个etcd,构建etcd集群
+```
+### 3.2.1 master上安装etcd
+```
+# tar xvf etcd.tar.gz
+# mv etcd.service  /usr/lib/systemd/system
+#mv etcd /opt/
 # vim /opt/etcd/cfg/etcd.conf
-			#[Member]
-ETCD_NAME="etcd-2"
-ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
-ETCD_LISTEN_PEER_URLS="https://192.168.133.181:2380"
-ETCD_LISTEN_CLIENT_URLS="https://192.168.133.181:2379"
+如果布etcd集群那么ETCD_INITIAL_CLUSTER里面就要写全etcd集群的ip，如果只有一个etcd，那么填写一个ip即可。其余需要填写ip地址的地方填写各自节点的ip即可
+	#[Member]
+	ETCD_NAME="etcd-1"
+	ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+	ETCD_LISTEN_PEER_URLS="https://192.168.133.180:2380"
+	ETCD_LISTEN_CLIENT_URLS="https://192.168.133.180:2379"
 
-#[Clustering]
-ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.133.181:2380"
-ETCD_ADVERTISE_CLIENT_URLS="https://192.168.133.181:2379"
-ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.133.180:2380,etcd-2=https://192.168.133.181:2380,etcd-3=https://192.168.133.182:2380"
-ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
-ETCD_INITIAL_CLUSTER_STATE="new"
-
-		在node2上修改配置文件
-# vim /opt/etcd/cfg/etcd.conf
-#[Member]
-ETCD_NAME="etcd-3"
-ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
-ETCD_LISTEN_PEER_URLS="https://192.168.133.182:2380"
-ETCD_LISTEN_CLIENT_URLS="https://192.168.133.182:2379"
-
-#[Clustering]
-ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.133.182:2380"
-ETCD_ADVERTISE_CLIENT_URLS="https://192.168.133.182:2379"
-ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.133.180:2380,etcd-2=https://192.168.133.181:2380,etcd-3=https://192.168.133.182:2380"
-ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
-ETCD_INITIAL_CLUSTER_STATE="new"
+	#[Clustering]
+	ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.133.180:2380"
+	ETCD_ADVERTISE_CLIENT_URLS="https://192.168.133.180:2379"
+	ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.133.180:2380,etcd-2=https://192.168.133.181:2380,etcd-3=https://192.168.133.182:2380"
+	ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
+	ETCD_INITIAL_CLUSTER_STATE="new"
+	
+# rm -rf /opt/etcd/ssl/*
+# \cp -fv /root/TLS/etcd/{ca,server,server-key}.pem /opt/etcd/ssl/
+```
+### 3.2.2 worker节点上安装etcd
+```
+将etcd管理程序和程序目录发送到node1和node2
+# scp /usr/lib/systemd/system/etcd.service root@k8s-node1:/usr/lib/systemd/system/
+# scp /usr/lib/systemd/system/etcd.service root@k8s-node2:/usr/lib/systemd/system/
+# scp -r /opt/etcd/  root@k8s-node1:/opt/
+# scp -r /opt/etcd/  root@k8s-node2:/opt/
 		
-		在三个节点依次启动etcd
-			# systemctl start etcd
+在node1上修改配置文件
+# vim /opt/etcd/cfg/etcd.conf
+#配置原理同master
+	#[Member]
+	ETCD_NAME="etcd-2"
+	ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+	ETCD_LISTEN_PEER_URLS="https://192.168.133.181:2380"
+	ETCD_LISTEN_CLIENT_URLS="https://192.168.133.181:2379"
+
+	#[Clustering]
+	ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.133.181:2380"
+	ETCD_ADVERTISE_CLIENT_URLS="https://192.168.133.181:2379"
+	ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.133.180:2380,etcd-2=https://192.168.133.181:2380,etcd-3=https://192.168.133.182:2380"
+	ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
+	ETCD_INITIAL_CLUSTER_STATE="new"
+
+在node2上修改配置文件
+# vim /opt/etcd/cfg/etcd.conf
+配置原理同master
+	#[Member]
+	ETCD_NAME="etcd-3"
+	ETCD_DATA_DIR="/var/lib/etcd/default.etcd"
+	ETCD_LISTEN_PEER_URLS="https://192.168.133.182:2380"
+	ETCD_LISTEN_CLIENT_URLS="https://192.168.133.182:2379"
+
+	#[Clustering]
+	ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.133.182:2380"
+	ETCD_ADVERTISE_CLIENT_URLS="https://192.168.133.182:2379"
+	ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.133.180:2380,etcd-2=https://192.168.133.181:2380,etcd-3=https://192.168.133.182:2380"
+	ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
+	ETCD_INITIAL_CLUSTER_STATE="new"
+```
+### 3.2.3 启动etcd并检查集群的健康性
+```
+在三个节点依次启动etcd
+# systemctl start etcd
 # systemctl enable etcd
-		检查是否启动成功
+
+检查是否启动成功
+此处ip地址需要根据自己的etcd集群ip具体填写
 # /opt/etcd/bin/etcdctl --ca-file=/opt/etcd/ssl/ca.pem --cert-file=/opt/etcd/ssl/server.pem --key-file=/opt/etcd/ssl/server-key.pem --endpoints="https://192.168.133.180:2379,https://192.168.133.181:2379,https://192.168.133.182:2379" cluster-health
-member 4370315ad93240ec is healthy: got healthy result from https://192.168.133.180:2379
-member 847a67ae71e9b632 is healthy: got healthy result from https://192.168.133.181:2379
-member a7aa314db8c5a2dc is healthy: got healthy result from https://192.168.133.182:2379
-cluster is healthy
+	member 4370315ad93240ec is healthy: got healthy result from https://192.168.133.180:2379
+	member 847a67ae71e9b632 is healthy: got healthy result from https://192.168.133.181:2379
+	member a7aa314db8c5a2dc is healthy: got healthy result from https://192.168.133.182:2379
+	cluster is healthy
+```
 
 
 
