@@ -5,7 +5,9 @@ system version :centos 7   k8s version:1.16
 
 
 # 搭建一个完整的Kubernetes集群
+
 '''
+@Override
  1、生产环境K8S平台规划  
  2、服务器硬件配置推荐  
  3、官方提供三种部署方式  
