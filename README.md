@@ -6,7 +6,7 @@ system version :centos 7   k8s version:1.16
 
 # 搭建一个完整的Kubernetes集群
 
-'''
+```
 @Override
  1、生产环境K8S平台规划  
  2、服务器硬件配置推荐  
@@ -18,7 +18,7 @@ system version :centos 7   k8s version:1.16
  8、部署K8s集群网络  
  9、部署Web UI（Dashboard  
  10、部署集群内部DNS解析服务（CoreDNS）  
-'''
+```
 
 
 
