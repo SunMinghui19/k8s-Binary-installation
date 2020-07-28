@@ -34,36 +34,47 @@ K8S版本：1.16
 ```
 ## 2、初始化服务器
 
-### 2.1、关闭防火墙
+### 2.1 关闭防火墙
 ```
-	[所有主节点都执行]
+[所有主节点都执行]
 # systemctl stop firewalld
 # systemctl disable firewalld
 ```
-### 2.2、关闭selinux
-[所有主节点都执行]
-setenforce 0  #临时关闭
+### 2.2 关闭selinux
+```
+[所有节点都执行] 先配置临时关闭，然后修改文件成永久性关闭
+#临时关闭
 # setenforce 0
-
-# vim /etc/selinux/config
+```
+```
+#永久性关闭
+# vim /etc/selinux/config 
 将config中的SELINUX=enforcing后面的修改为disabled
-
-### 2.3、配置主机名
+```
+### 2.3 配置主机名
+```
 [所有主节点都执行]
 hostnamectl set-hostname 主机名
 使用hostname检验是否更改成功
- ### 2.4、配置名称解析（更改host文件）
+
+#此处根据自己的集群配置设置主机名
+```
+ ### 2.4 配置名称解析（更改host文件）
+ ```
 [所有主节点都执行]
 vim /etc/hosts
 添加如下几行
 192.168.133.180 k8s-master1
 192.168.133.181 k8s-node1
 192.168.133.182 k8s-node2
-### 2.5、配置时间同步
-	选择一个节点作为服务端，剩下的作为客户端
-	master1为时间服务器的服务端
-	其他的为时间服务器的客户端
-1）	配置k8s-master1
+```
+### 2.5 配置时间同步
+```
+选择一个节点作为服务端，剩下的作为客户端
+master1为时间服务器的服务端
+其他的为时间服务器的客户端
+```
+#### 2.5.1 配置k8s-master1
 #yum install chrony –y
 #vim /etc/chrony.conf
 修改三项
