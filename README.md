@@ -246,9 +246,236 @@ etcd需要三台虚拟机
 	cluster is healthy
 ```
 
+# 四、为api server签发证书
+```
+# cd /root/TLS/k8s/
+# vim server-csr.json
+（下面填写了我自己主机的ip地址，具体填写内容要根据你集群的ip来。将所有的ip都填写进去）
+	{
+	    "CN": "kubernetes",
+	    "hosts": [
+	      "10.0.0.1",
+	      "127.0.0.1",
+	      "kubernetes",
+	      "kubernetes.default",
+	      "kubernetes.default.svc",
+	      "kubernetes.default.svc.cluster",
+	      "kubernetes.default.svc.cluster.local",
+	      "192.168.133.180",
+	      "192.168.133.181",
+	      "192.168.133.182"
+	    ],
+	    "key": {
+		"algo": "rsa",
+		"size": 2048
+	    },
+	    "names": [
+		{
+		    "C": "CN",
+		    "L": "BeiJing",
+		    "ST": "BeiJing",
+		    "O": "k8s",
+		    "OU": "System"
+# ./generate_k8s_cert.sh
+```
+
+# 五、部署master服务器
+```
+# tar xvf k8s-master.tar.gz 
+# mv kube-apiserver.service kube-controller-manager.service kube-scheduler.service /usr/lib/systemd/system/
+# mv kubernetes /opt/
+# cp /root/TLS/k8s/{ca*pem,server.pem,server-key.pem} /opt/kubernetes/ssl/ -rvf
+
+修改apiserver的配置文件
+# vim /opt/kubernetes/cfg/kube-apiserver.conf
+etcd-servers处填写etcd的IP，其余部分为当前主机IP即master的IP
+	KUBE_APISERVER_OPTS="--logtostderr=false \
+	--v=2 \
+	--log-dir=/opt/kubernetes/logs \
+	--etcd-servers=https://192.168.133.180:2379,https://192.168.133.181:2379,https://192.168.133.182:2379 \
+	--bind-address=192.168.133.180 \
+	--secure-port=6443 \
+	--advertise-address=192.168.133.180 \
+	--allow-privileged=true \
+	--service-cluster-ip-range=10.0.0.0/24 \
+	--enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,ResourceQuota,NodeRestriction \
+	--authorization-mode=RBAC,Node \
+	--enable-bootstrap-token-auth=true \
+	--token-auth-file=/opt/kubernetes/cfg/token.csv \
+	--service-node-port-range=30000-32767 \
+	--kubelet-client-certificate=/opt/kubernetes/ssl/server.pem \
+	--kubelet-client-key=/opt/kubernetes/ssl/server-key.pem \
+	--tls-cert-file=/opt/kubernetes/ssl/server.pem  \
+	--tls-private-key-file=/opt/kubernetes/ssl/server-key.pem \
+	--client-ca-file=/opt/kubernetes/ssl/ca.pem \
+	--service-account-key-file=/opt/kubernetes/ssl/ca-key.pem \
+	--etcd-cafile=/opt/etcd/ssl/ca.pem \
+	--etcd-certfile=/opt/etcd/ssl/server.pem \
+	--etcd-keyfile=/opt/etcd/ssl/server-key.pem \
+	--audit-log-maxage=30 \
+	--audit-log-maxbackup=3 \
+	--audit-log-maxsize=100 \
+	--audit-log-path=/opt/kubernetes/logs/k8s-audit.log"
+
+启动master节点
+# systemctl start kube-apiserver
+# systemctl enable kube-apiserver
+# systemctl start kube-scheduler
+# systemctl enable kube-scheduler
+# systemctl start kube-controller-manager
+# systemctl enable kube-controller-manager
+
+配置可以直接使用kubelet
+# cp /opt/kubernetes/bin/kubectl   /bin/
 
 
+检查启动结果
+# ps aux |grep kube
+可以看到进程中有kube-apiserver、kube-schedule、kube-controller-manager的字样
+		
 
+配置TLS基于bootstrap自动颁发证书（自动的为访问kubelet的服务颁发证书，此处为授权操作）
+# kubectl create clusterrolebinding kubelet-bootstrap \
+--clusterrole=system:node-bootstrapper \
+--user=kubelet-bootstrap
+```
+
+# 六、部署worker服务器
+```
+ node节点需要安装如下软件：
+	docker：启动容器
+	kubelet：接收apiserver的指令，控制docker容器
+	kube-proxy：为worker上的容器配置网络功能
+```
+##  6.1安装配置docker
+```
+# tar xvf k8s-node.tar.gz 
+# mv docker.service /usr/lib/systemd/system
+# mkdir /etc/docker
+# cp daemon.json /etc/docker
+# tar xf docker-18.09.6.tgz 
+# mv docker/* /bin/
+# systemctl start docker
+# systemctl enable docker
+ # docker info
+
+
+执行docker info出现如下警告
+WARNING: bridge-nf-call-iptables is disabled
+WARNING: bridge-nf-call-ip6tables is disabled
+
+解决办法：
+vi /etc/sysctl.conf
+
+添加以下内容
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+
+最后再执行
+sysctl -p
+
+此时docker info就看不到此报错了
+```
+
+## 6.2安装kubelet和kube-proxy
+```
+!!!!!注意:给个node节点都要做如下操作
+
+1）生成程序目录和管理脚本
+# tar xvf k8s-node.tar.gz 
+# mv kubelet.service  kube-proxy.service  /usr/lib/systemd/system/
+# mv kubernetes /opt/
+
+
+2)修改配置文件（4个）
+# vim /opt/kubernetes/cfg/kube-proxy.kubeconfig
+	修改一行:server: https://192.168.133.180:6443
+	这里指定的是master的IP地址
+
+# vim /opt/kubernetes/cfg/kube-proxy-config.yml
+	修改一行：hostnameOverride: k8s-node1
+	这里是指定当前主机的主机名
+
+# vim /opt/kubernetes/cfg/kubelet.conf
+	修改一行：--hostname-override=k8s-node1 \
+	这里是指定当前主机的主机名
+
+# vim /opt/kubernetes/cfg/bootstrap.kubeconfig
+	修改一行：server: https://192.168.133.180:6443
+	这里指定的是master的IP地址
+
+3)从master节点复制证书到worker节点
+[root@k8s-master1 ~]# cd /root/TLS/k8s/
+[root@k8s-master1 k8s]# scp ca.pem kube-proxy.pem  kube-proxy-key.pem root@k8s-node1:/opt/kubernetes/ssl/
+
+4）启动kubelet和kube-proxy服务
+[root@k8s-node1 ~]# systemctl start kube-proxy
+[root@k8s-node1 ~]# systemctl enable kube-proxy
+[root@k8s-node1 ~]# systemctl start kubelet
+[root@k8s-node1 ~]# systemctl enable kubelet
+
+[root@k8s-node1 ~]# tail -f /opt/kubernetes/logs/kubelet.INFO 
+如果看到最后一行信息是如下内容，就表示启动服务正常：
+I0709 15:42:29.150959   10657 bootstrap.go:150] No valid private key and/or certificate found, reusing existing private key or creating a new one
+
+5）在master节点为worker节点颁发证书
+[root@k8s-master1 k8s]# kubectl get csr
+NAME           AGE     REQUESTOR           CONDITION
+node-csr-zPG-VxeXMszsgMz5pkdEnWeCnnBdYL7r666ECwbg5pc   5m25s   kubelet-bootstrap   Pending
+ [root@k8s-master1 k8s]# kubectl certificate approve node-csr-zPG-VxeXMszsgMz5pkdEnWeCnnBdYL7r666ECwbg5pc	
+！！！注意：名称（NAME）必须用自己的名称。
+
+
+6）给worker节点颁发证书之后，就可以在master上看到worker节点了
+[root@k8s-master1 k8s]# kubectl get nodes
+NAME        STATUS     ROLES    AGE     VERSION
+k8s-node1   NotReady   <none>   3m53s   v1.16.0
+```
+
+# 7、安装网络插件flannel
+```
+！！！！【两个node都要做】
+1）确认启用CNI插件
+[root@k8s-node1 ~]# grep "cni" /opt/kubernetes/cfg/kubelet.conf 
+--network-plugin=cni \
+
+2）安装CNI
+[root@k8s-node1 ~]# mkdir -pv /opt/cni/bin  /etc/cni/net.d
+[root@k8s-node1 ~]# tar xf k8s-node.tar.gz 
+[root@k8s-node1 ~]# tar zxvf cni-plugins-linux-amd64-v0.8.2.tgz  -C  /opt/cni/bin
+
+
+3）在master上执行yaml脚本，实现在worker节点安装启动网络插件功能
+[root@k8s-master1 YAML]# kubectl apply -f kube-flannel.yaml 
+	podsecuritypolicy.policy/psp.flannel.unprivileged created
+	clusterrole.rbac.authorization.k8s.io/flannel created
+	clusterrolebinding.rbac.authorization.k8s.io/flannel created
+	serviceaccount/flannel created
+	configmap/kube-flannel-cfg created
+	daemonset.apps/kube-flannel-ds-amd64 created
+注意：这个操作受限于网络，可能需要5-10分钟才能执行成功，如果网速过慢，会提示超时。如果实在下载不下来，可以更换docker的镜像源
+
+tip：更换docker镜像源
+1、修改配置文件
+vim /etc/docker/daemon.json
+删除所有内容替换为如下内容：
+{
+"registry-mirrors": [
+"https://kfwkfulq.mirror.aliyuncs.com",
+"https://2lqq34jg.mirror.aliyuncs.com",
+"https://pee6w651.mirror.aliyuncs.com",
+"https://registry.docker-cn.com",
+"http://hub-mirror.c.163.com",
+],
+"dns": ["8.8.8.8","8.8.4.4"]
+}
+2、重启服务
+# systemctl daemon-reload
+# systemctl restart docker
+
+
+```
+# 8、安装网络插件flannel
 
 
 
