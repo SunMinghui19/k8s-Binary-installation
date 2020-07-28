@@ -22,14 +22,14 @@ system version :centos 7   k8s version:1.16
 ## 1、生产环境K8S平台规划
 ```
 master  
-		主机名：k8s-master1  
-		IP：192.168.133.180  
-	worker1  
-		主机名：k8s-node1  
-		IP：192.168.133.181  
-	worker2： 
-		主机名：k8s-node2  
-		IP：192.168.133.182  
+ 主机名：k8s-master1  
+ IP：192.168.133.180  
+worker1  
+ 主机名：k8s-node1  
+ IP：192.168.133.181  
+worker2： 
+ 主机名：k8s-node2  
+ IP：192.168.133.182  
 
 K8S版本：1.16  
 安装方式：离线-二进制  
