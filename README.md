@@ -8,12 +8,12 @@ system version :centos 7   k8s version:1.16
 ```
  1、生产环境K8S平台规划  
  2、初始化服务器  
- 3、为Etcd和APIServer自签SSL证书  
- 4、Etcd数据库集群部署  
- 5、部署Master组件  
- 6、部署Node组件  
- 7、部署K8s集群网络   
- 8、部署集群内部DNS解析服务（CoreDNS）  
+ 3、给etcd来颁发证书并部署etcd  
+ 4、为apiserver签发证书  
+ 5、部署master服务器  
+ 6、部署Node服务器 
+ 7、安装网络插件flannel   
+ 8、安装集群内部DNS解析服务（CoreDNS）  
 ```
 
 ## 1、生产环境K8S平台规划
@@ -246,7 +246,7 @@ etcd需要三台虚拟机
 	cluster is healthy
 ```
 
-# 四、为api server签发证书
+# 四、为apiserver签发证书
 ```
 # cd /root/TLS/k8s/
 # vim server-csr.json
@@ -456,7 +456,7 @@ k8s-node1   NotReady   <none>   3m53s   v1.16.0
 注意：这个操作受限于网络，可能需要5-10分钟才能执行成功，如果网速过慢，会提示超时。如果实在下载不下来，可以更换docker的镜像源
 
 tip：更换docker镜像源
-1、修改配置文件
+1）修改配置文件
 vim /etc/docker/daemon.json
 删除所有内容替换为如下内容：
 {
@@ -469,13 +469,36 @@ vim /etc/docker/daemon.json
 ],
 "dns": ["8.8.8.8","8.8.4.4"]
 }
-2、重启服务
+2）重启服务
 # systemctl daemon-reload
 # systemctl restart docker
 
+# kubectl get pods -n kube-system
+NAME                          READY   STATUS    RESTARTS   AGE
+kube-flannel-ds-amd64-6nwrd   1/1     Running   0          121m
+kube-flannel-ds-amd64-bm8mg   1/1     Running   0          121m
 
+查看worker节点的状态
+[root@k8s-master1 sunminghui]# kubectl get nodes
+NAME        STATUS     ROLES    AGE    VERSION
+k8s-node1   Ready   <none>   3h2m   v1.16.0
+k8s-node2   Ready   <none>   166m   v1.16.0
+
+如果flannel成功运行了但是节点并没有ready，可以尝试在work节点进行如下指令
+systemctl restart docker
+systemctl restart kube-proxy
+systemctl restart kubelet
 ```
-# 8、安装网络插件flannel
+
+# 8、安装集群内部DNS解析服务（CoreDNS）
+```
+# kubectl apply -f coredns.yaml
+# kubectl get pods -n kube-system
+NAME                          READY   STATUS    RESTARTS   AGE
+coredns-6d8cfdd59d-mqwnh      	1/1     Running   0          2m54s
+```
+
+
 
 
 
