@@ -70,43 +70,50 @@ vim /etc/hosts
 ```
 ### 2.5 配置时间同步
 ```
-选择一个节点作为服务端，剩下的作为客户端
-master1为时间服务器的服务端
-其他的为时间服务器的客户端
+选择一个节点作为服务端，剩下的作为客户端master1为时间服务器的服务端其他的为时间服务器的客户端
 ```
-#### 2.5.1 配置k8s-master1
+#### 2.5.1 配置k8s-master1的chrony
+```
 #yum install chrony –y
 #vim /etc/chrony.conf
-修改三项
-	server 127.127.1.0 iburst
-	allow 192.168.133.0/24
+修改chrony.conf中以下三项
+	server 127.127.1.0 iburst #127.127.1.0是本地时间服务器
+	allow 192.168.133.0/24 #允许192.168.133网段下的ip访问
 	local stratum 10
-	# systemctl start chronyd
+# systemctl start chronyd
 # systemctl enable chronyd
+
+通过如下命令验证是否安装设置成功
 # ss -unl | grep 123
 UNCONN     0      0            *:123                      *:*
-2）	配置k8s-node1和k8s-node2
+```
+#### 2.5.1配置k8s-node1和k8s-node2的chrony
+```
 #yum install chrony –y
 #vim /etc/chrony.conf
+修改chrony.conf对应项成为如下内容
 		server 192.168.133.180 iburst
 # systemctl start chronyd
 # systemctl enable chronyd
-# chronyc sources
-210 Number of sources = 1
-MS Name/IP address         Stratum Poll Reach LastRx Last sample               
-===============================================================================
-^* k8s-master1                  10   6    17    60    -44us[  -56us] +/-  192us
+
+# chronyc sources #worker节点的时间源为^* k8s-master1项即为正常
+	210 Number of sources = 1
+	MS Name/IP address         Stratum Poll Reach LastRx Last sample               
+	===============================================================================
+	^* k8s-master1                  10   6    17    60    -44us[  -56us] +/-  192us
+```
 ### 2.6、关闭交换分区
+```
 [所有主节点都执行]
 我们在使用k8s的时候如果开着交换分区可能导致服务起不来
-[root@localhost sunminghui]# swapoff –a  #暂时关闭
-[root@localhost sunminghui]# vim /etc/fstab #永久关闭
-删除一行：swap
+# swapoff –a  #暂时关闭
+# vim /etc/fstab #永久关闭
+	注释一行：swap
 [root@localhost sunminghui]# free –m #检验是否成功
-                total        used        free      shared  buff/cache   available
-Mem:           2818         107        2565           8         144        2539
-Swap:             0           0           0
-
+			total        used        free      shared  buff/cache   available
+	Mem:           2818         107        2565           8         144        2539
+	Swap:             0           0           0
+```
 
 
 
