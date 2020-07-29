@@ -1,6 +1,8 @@
 # k8s-Binary-installation
-system version :centos 7   k8s version:1.16 
-
+ 
+离线软件下载地址
+链接：https://pan.baidu.com/s/1t1I3NfWcPOJVM8dHRYc8Dg 
+提取码：ga71
 
 
 # 搭建一个完整的Kubernetes集群
