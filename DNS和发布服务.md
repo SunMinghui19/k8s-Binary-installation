@@ -20,6 +20,8 @@
 同类，Service也是类似的概念。 
 ![image](https://github.com/SunMinghui19/k8s-Binary-installation/blob/master/images/service2.JPG)  
 
+其实上面的这个图片省略了很多东西，service之所以能跟下面的3个pod绑定。是应为在创建service时使用了seclector，里面的键值与3个pod的标签匹配。在这样的环境下  
+* coredns为集群中的svc创建一个域名IP的对应关系解析，此时，最上面讲的coreDNS的工作就由Service接替了。
 
 
 
