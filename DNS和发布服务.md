@@ -11,3 +11,6 @@
 ![image](https://github.com/SunMinghui19/k8s-Binary-installation/blob/master/images/cordns.JPG)   
 
 其实就是php通过直接访问mysql的名字，这个时候cordns就会将mysql对应的地址发送给php，这样就可以顺利建立连接。同时，如果mysql的地址变了，也会将更改后的信息告诉coreDNS，将改变后的信息记录起来。  
+
+# Service
+由于pod的地址会发生改变，通过Service可以为pod提供一个统一的访问入口  
