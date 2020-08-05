@@ -1,5 +1,5 @@
 # CorDNS
-
+！！！！！！！！！！！！！注意，这种情况只限于没有启用service且deployment创建了一个副本的情境下
 假设有这样几个pod  
 ![image](https://github.com/SunMinghui19/k8s-Binary-installation/blob/master/images/%E7%90%86%E6%83%B3%E7%8A%B6%E6%80%81%E4%B8%89%E5%B1%82%E6%9C%8D%E5%8A%A1.JPG)   
 三个pod之间相互通信可以通过ip进行通信，nginx在和php通信的时候要明确php的ip地址，php和mysql通信的时候php要明确知道mysql的ip地址  
@@ -14,11 +14,11 @@
 
 # Service
 由于pod的地址会发生改变，通过Service可以为pod提供一个统一的访问入口  
-
-买水果的人不知道在哪，你不可能去果园里直接买。这个时候就需要一个中间层--菜市场，卖水果的人在菜市场租一个摊位，那么买水果的直接到菜市场就能买到水果了。菜市场就相当于一个访问入口，我不知道苹果、香蕉、西红柿在哪。我只要去菜市场就能找到了
-
-同类，Service也是类似的概念。
-
+![image](https://github.com/SunMinghui19/k8s-Binary-installation/blob/master/images/service1.JPG)  
+买水果的人不知道在哪，你不可能去果园里直接买。这个时候就需要一个中间层--菜市场，卖水果的人在菜市场租一个摊位，那么买水果的直接到菜市场就能买到水果了。菜市场就相当于一个访问入口，我不知道苹果、香蕉、西红柿在哪。我只要去菜市场就能找到了  
+  
+同类，Service也是类似的概念。 
+![image](https://github.com/SunMinghui19/k8s-Binary-installation/blob/master/images/service2.JPG)  
 
 
 
@@ -29,4 +29,4 @@
 
 问题：1、ip不是固定的
      2、即使ip固定，外网也无法访问的到
-     打电话地方
+     
